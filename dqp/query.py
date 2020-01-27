@@ -13,7 +13,7 @@ class PreparedSQLQuery(Query):
     A PreparedSQLQuery object is used to create an sql statement from a queryset but cannot execute it.
     """
 
-    compiler = 'NoExecutionSQLCompiler'
+    compiler = "NoExecutionSQLCompiler"
 
     def __init__(self, *args, **kawrgs):
         super().__init__(*args, **kawrgs)
@@ -56,7 +56,7 @@ class PreparedStmtQuery(Query):
     A PreparedStmtQuery uses the PreparedStmtCompiler to execute a prepared statement in the database.
     """
 
-    compiler = 'PreparedStmtCompiler'
+    compiler = "PreparedStmtCompiler"
 
     def __init__(self, model, exec_stmt, params, compiled_sql_data):
         super().__init__(model)

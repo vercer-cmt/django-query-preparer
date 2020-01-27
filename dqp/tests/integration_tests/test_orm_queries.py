@@ -10,7 +10,6 @@ from dqp.exceptions import CannotAlterPreparedStatementQuerySet, PreparedQueryNo
 
 
 class TestORMQueries(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.tiger = Species(name="Tiger")

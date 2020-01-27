@@ -73,7 +73,6 @@ class PreparedStatementController:
         self.prepared_statements[stmt_name] = PreparedORMStatement(stmt_name, stmt_qs)
         self.prepared_statements[stmt_name].prepare()
 
-
     def execute(self, stmt_name, *args, **kwargs):
         if stmt_name not in self.prepared_statements.keys():
             raise StatementNotPreparedException(f"Statement {stmt_name} has not been prepared prior to execution")

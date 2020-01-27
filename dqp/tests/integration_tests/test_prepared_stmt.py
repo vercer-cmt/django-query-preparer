@@ -4,6 +4,7 @@ from psycopg2.errors import ProgrammingError
 
 from dqp.prepared_stmt import dictfetchall, PreparedStatement
 
+
 class TestPreparedStatement(TransactionTestCase):
 
     test_schema = """
@@ -37,7 +38,6 @@ class TestPreparedStatement(TransactionTestCase):
         """
         with connection.cursor() as cursor:
             cursor.execute("drop table if exists my_table;")
-
 
     def test_prepare_statement(self):
         """
@@ -81,7 +81,10 @@ class TestPreparedStatement(TransactionTestCase):
 
         results = ps.execute()
         expected_results = [
-            {"id": 1, "name": "dan"}, {"id": 2, "name": "ben"}, {"id": 3, "name": "gareth"}, {"id": 4, "name": "marcin"}
+            {"id": 1, "name": "dan"},
+            {"id": 2, "name": "ben"},
+            {"id": 3, "name": "gareth"},
+            {"id": 4, "name": "marcin"},
         ]
         self.assertEqual(results, expected_results)
 
@@ -150,7 +153,10 @@ class TestPreparedStatement(TransactionTestCase):
 
         results = ps.execute()
         expected_results = [
-            {"id": 1, "name": "dan"}, {"id": 2, "name": "ben"}, {"id": 3, "name": "gareth"}, {"id": 4, "name": "marcin"}
+            {"id": 1, "name": "dan"},
+            {"id": 2, "name": "ben"},
+            {"id": 3, "name": "gareth"},
+            {"id": 4, "name": "marcin"},
         ]
         self.assertEqual(results, expected_results)
         self.assertTrue(ps._check_stmt_is_prepared())

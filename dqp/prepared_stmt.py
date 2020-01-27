@@ -12,6 +12,7 @@ NAMED_PLACEHOLDER_REGEX = re.compile("(%\([\w-]+\)s)")
 PLACEHOLDER_REGEX = re.compile("(%s)")
 IN_REGEX = re.compile("(IN|in|In|iN)[\s]*\(%s\)")
 
+
 def dictfetchall(cursor):
     """Return all rows from a cursor as a dict"""
     columns = [col[0] for col in cursor.description]
@@ -67,7 +68,7 @@ class PreparedStatement:
         """
         sql = self.input_sql.lower().strip()
         if sql[-1] == ";":
-            sql = sql [:-1]
+            sql = sql[:-1]
         sql_as_list = sql.split()
 
         counter = 0
@@ -108,7 +109,7 @@ class PreparedStatement:
         if self.named_placeholders is not None:
             self.execute_stmt = "".join(["EXECUTE ", self.pg_name, "(", ", ".join(self.named_placeholders), ")"])
         elif self.num_params > 0:
-            self.execute_stmt = "".join(["EXECUTE ", self.pg_name, "(", ", ".join(self.num_params*["%s"]), ")"])
+            self.execute_stmt = "".join(["EXECUTE ", self.pg_name, "(", ", ".join(self.num_params * ["%s"]), ")"])
         else:
             self.execute_stmt = "EXECUTE {}".format(self.pg_name)
 
@@ -144,7 +145,7 @@ class PreparedStatement:
     def _check_stmt_is_prepared(self):
         with connection.cursor() as cursor:
             cursor.execute("""select count(*) from pg_prepared_statements where name = %s;""", [self.pg_name])
-            count, = cursor.fetchone()
+            (count,) = cursor.fetchone()
         return count == 1
 
     def _execute(self, args):
@@ -157,9 +158,12 @@ class PreparedORMStatement(PreparedStatement):
     """
     A wrapper around the PreparedStatement class which takes a django query set and handles preperation and execution of it.
     """
+
     def __init__(self, name, qs):
         if not isinstance(qs, PreparedQuerySqlBuilder):
-            raise ValueError("A prepared ORM statement requires the queryset to be a PreparedQuerySqlBuilder built using the PreparedStatementManager")
+            raise ValueError(
+                "A prepared ORM statement requires the queryset to be a PreparedQuerySqlBuilder built using the PreparedStatementManager"
+            )
         sql = str(qs)
         super().__init__(name, self._modify_sql(sql))
         self.model = qs.model
@@ -186,13 +190,9 @@ class PreparedORMStatement(PreparedStatement):
             if num == 1:
                 return qs[0]
             if not num:
-                raise self.model.DoesNotExist(
-                    "%s matching query does not exist." %
-                    self.model._meta.object_name
-                )
+                raise self.model.DoesNotExist("%s matching query does not exist." % self.model._meta.object_name)
             raise self.model.MultipleObjectsReturned(
-                "get() returned more than one %s -- it returned %s!" %
-                (self.model._meta.object_name, num)
+                "get() returned more than one %s -- it returned %s!" % (self.model._meta.object_name, num)
             )
         else:
             return qs

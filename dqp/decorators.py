@@ -2,6 +2,7 @@
 
 from dqp.prepared_stmt_controller import PreparedStatementController
 
+
 def register_prepared_sql(func):
     """
     Register an SQL statement to be prepared in the database. The function supplied must return an SQL query which will

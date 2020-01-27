@@ -2,8 +2,11 @@
 
 from django.db.models.query import QuerySet
 
-from dqp.exceptions import PreparedQueryNotSupported, CannotAlterPreparedStatementQuerySet, \
-    PreparedStatementNotYetExecuted
+from dqp.exceptions import (
+    PreparedQueryNotSupported,
+    CannotAlterPreparedStatementQuerySet,
+    PreparedStatementNotYetExecuted,
+)
 from dqp.query import PreparedSQLQuery, PreparedStmtQuery
 
 
@@ -26,7 +29,9 @@ class PreparedQuerySetBase(QuerySet):
 
     # Methods that are not available for prepared querysets
 
-    NotSupportedMessage = "Cannot use {} with prepared querysets. Please use an ordinary ORM queryset or use SQL for the prepared query."
+    NotSupportedMessage = (
+        "Cannot use {} with prepared querysets. Please use an ordinary ORM queryset or use SQL for the prepared query."
+    )
 
     def aggregate(self, *args, **kwargs):
         raise PreparedQueryNotSupported(self.NotSupportedMessage.format("aggregate"))
@@ -60,7 +65,6 @@ class PreparedQuerySetBase(QuerySet):
 
     def explain(self, *args, **kwargs):
         raise PreparedQueryNotSupported(self.NotSupportedMessage.format("explain"))
-
 
 
 class PreparedQuerySqlBuilder(PreparedQuerySetBase):
@@ -160,13 +164,21 @@ class PreparedStatementQuerySet(PreparedQuerySetBase):
             return None
 
     def filter(self, *args, **kwargs):
-        raise CannotAlterPreparedStatementQuerySet("Please use python built-in function `filter` on the query set instead")
+        raise CannotAlterPreparedStatementQuerySet(
+            "Please use python built-in function `filter` on the query set instead"
+        )
 
     def get(self, *args, **kwargs):
-        raise CannotAlterPreparedStatementQuerySet("Please use python built-in function `filter` on the query set instead")
+        raise CannotAlterPreparedStatementQuerySet(
+            "Please use python built-in function `filter` on the query set instead"
+        )
 
     def earliest(self, *args, **kwargs):
-        raise CannotAlterPreparedStatementQuerySet("Please use python built-in function `sorted` on the query set instead")
+        raise CannotAlterPreparedStatementQuerySet(
+            "Please use python built-in function `sorted` on the query set instead"
+        )
 
     def latest(self, *args, **kwargs):
-        raise CannotAlterPreparedStatementQuerySet("Please use python built-in function `sorted` on the query set instead")
+        raise CannotAlterPreparedStatementQuerySet(
+            "Please use python built-in function `sorted` on the query set instead"
+        )

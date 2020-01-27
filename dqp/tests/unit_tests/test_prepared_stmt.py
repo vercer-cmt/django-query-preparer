@@ -3,8 +3,8 @@ from psycopg2.errors import ProgrammingError
 
 from dqp.prepared_stmt import PreparedStatement, PreparedORMStatement
 
-class TestPreparedStatement(TestCase):
 
+class TestPreparedStatement(TestCase):
     def test_pg_name_1(self):
         """
         Given a statement name which contains no dots
@@ -58,7 +58,6 @@ class TestPreparedStatement(TestCase):
         self.assertEqual(ps.sql, expected_sql)
         self.assertEqual(ps.num_params, 2)
         self.assertEqual(ps.named_placeholders, None)
-
 
     def test_prepare_input_sql_3(self):
         """
@@ -139,7 +138,6 @@ class TestPreparedStatement(TestCase):
 
 
 class TestPreparedORMStatement(TestCase):
-
     def test_modify_sql_1(self):
         """
         Given an sql query string with no IN terms

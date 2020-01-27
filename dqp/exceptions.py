@@ -1,5 +1,6 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
+
 class StatementAlreadyPreparedException(Exception):
     pass
 

@@ -5,11 +5,13 @@ from django.db.models.sql.compiler import SQLCompiler
 
 from dataclasses import dataclass
 
+
 @dataclass
 class CompiledSQLData:
     """
     Holds information about the compiled SQL that is determined when preparing the SQL but needs to be known on execution.
     """
+
     col_count = 0
     has_extra_select = False
     select = None
@@ -22,6 +24,7 @@ class NoExecutionSQLCompiler(SQLCompiler):
     The NoExecutionSQLCompiler is mostly the same as the basic django SQLCompiler but it has special cases for preparing
     a count() query and it cannot execute SQL quries; it is only used to build the sql.
     """
+
     def __init__(self, query, connection, using, is_count_qry=False):
         super().__init__(query, connection, using)
         self.is_count_qry = is_count_qry
@@ -30,7 +33,7 @@ class NoExecutionSQLCompiler(SQLCompiler):
         """ Special case for if we are preparing a count() query """
         if self.is_count_qry is True:
             col = (Col("__count", None), ("COUNT(*)", []), None)
-            klass_info = {'model': self.query.model, 'select_fields': ["__count"]}
+            klass_info = {"model": self.query.model, "select_fields": ["__count"]}
             annotations = dict()
             return (col,), klass_info, annotations
         else:
@@ -52,9 +55,11 @@ class PreparedStmtCompiler(SQLCompiler):
     The PreparedStmtCompiler executes prepared statements. The executions statement and the input parameters are
     supplied by the PreparedStmtQuery object.
     """
+
     def __init__(self, query, connection, using, compiled_sql_data):
         # circular import
         from dqp.query import PreparedStmtQuery
+
         if not isinstance(query, PreparedStmtQuery):
             raise ValueError("Can only use a PreparedStmtCompiler with a PreparedStmtQuery")
         super().__init__(query, connection, using)

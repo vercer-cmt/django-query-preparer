@@ -2,10 +2,12 @@
 
 from dqp.prepared_stmt_controller import PreparedStatementController
 
+
 class PrepStmtTestMixin:
     """
     Re-prepare all prepared queries between each test
     """
+
     @classmethod
     def setUp(cls):
         PreparedStatementController().deallocate_all()
