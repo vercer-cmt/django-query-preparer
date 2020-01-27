@@ -3,14 +3,14 @@
 import re
 
 from django.db import connection, OperationalError
-from psycopg2.errors import InvalidSqlStatementName
+from psycopg2.errors import InvalidSqlStatementName, ProgrammingError
 
 from dqp.query import PreparedStmtQuery
 from dqp.queryset import PreparedQuerySqlBuilder, PreparedStatementQuerySet
 
 NAMED_PLACEHOLDER_REGEX = re.compile("(%\([\w-]+\)s)")
 PLACEHOLDER_REGEX = re.compile("(%s)")
-
+IN_REGEX = re.compile("(IN|in|In|iN)[\s]*\(%s\)")
 
 def dictfetchall(cursor):
     """Return all rows from a cursor as a dict"""
@@ -22,11 +22,11 @@ class PreparedStatement:
     def __init__(self, name, sql):
         self.name = name
         self.input_sql = sql
-        self.num_parms = 0
+        self.num_params = 0
         self.named_placeholders = None
         self.sql = ""
 
-        # The names of the preapred statements are <module>.<function> but dots aren't allowed as the names of prepared
+        # The names of the prepared statements are <module>.<function> but dots aren't allowed as the names of prepared
         # statements in postgres so replace "." by "__"
         self.pg_name = self.name.replace(".", "__")
 
@@ -171,7 +171,7 @@ class PreparedORMStatement(PreparedStatement):
     def _modify_sql(sql):
         # Change from `field IN (%s)` to use postgres specific `field = ANY(%s)` so we can supply any number of args at
         # execution time. I believe this is safe as django never produces sql with named placeholders.
-        return sql.replace("IN (%s)", "= ANY(%s)")
+        return IN_REGEX.sub("= ANY(%s)", sql)
 
     def _execute(self, qry_args):
         if self.is_count_qry is True:
