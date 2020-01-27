@@ -1,4 +1,4 @@
-# Contributing to the Python APM Agent
+# Contributing to the Django Query Preparer
 
 Django-query-preparer is an open source project and we welcome any bugfixes or feature improvements.
 
