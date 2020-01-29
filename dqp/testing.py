@@ -13,6 +13,7 @@ class PrepStmtTestMixin:
         PreparedStatementController().deallocate_all()
         PreparedStatementController().prepare_all(force=True)
 
+
 from dqp.prepared_stmt_controller import PreparedStatementController
 
 

@@ -38,7 +38,11 @@ class PreparedSQLQuery(Query):
     def build_lookup(self, lookups, lhs, rhs):
         if isinstance(rhs, Placeholder) or isinstance(rhs, ListPlaceholder):
             if rhs.name in self.placeholder_names:
-                raise NameError("Repeated placeholder name: {}. All placeholders in a query must have unique names.".format(rhs.name))
+                raise NameError(
+                    "Repeated placeholder name: {}. All placeholders in a query must have unique names.".format(
+                        rhs.name
+                    )
+                )
             self.placeholder_names.add(rhs.name)
             # Hack - if the rhs is a placeholder then we just want to return the placeholder when the
             # value is prepared against the lhs field type.

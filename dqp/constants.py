@@ -2,11 +2,13 @@
 
 from collections import UserList
 
+
 class Placeholder:
     def __init__(self, name):
         if "%" in name:
             raise ValueError("Placeholders cannot contain the % symbol")
         self.name = name
+
     def __repr__(self):
         return "dqp.placeholder.{}".format(self.name)
 

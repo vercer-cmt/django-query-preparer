@@ -10,6 +10,7 @@ from dqp.exceptions import CannotAlterPreparedStatementQuerySet, PreparedQueryNo
 
 from test_app.models import Species, Animal
 
+
 class TestORMQueries(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -129,7 +130,9 @@ class TestORMQueries(TestCase):
         PreparedStatementController().register_qs("filter_species", filter_species)
         with self.assertRaises(NameError) as ctx:
             PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
-        self.assertEqual(str(ctx.exception), "Repeated placeholder name: pk. All placeholders in a query must have unique names.")
+        self.assertEqual(
+            str(ctx.exception), "Repeated placeholder name: pk. All placeholders in a query must have unique names."
+        )
 
     def test_filter_too_many_params(self):
         def filter_species():

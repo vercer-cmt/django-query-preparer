@@ -206,7 +206,9 @@ class PreparedORMStatement(PreparedStatement):
 
                     arg_name = part.lstrip("dqp.placeholder.")
                     if arg_name not in kwargs:
-                        raise ValueError("Missing parameter {} is required to execute prepared statement".format(arg_name))
+                        raise ValueError(
+                            "Missing parameter {} is required to execute prepared statement".format(arg_name)
+                        )
                     # replace the placehollder name with the actual supplied parameter value
                     parts[i] = kwargs[arg_name]
                     del kwargs[arg_name]
@@ -218,7 +220,6 @@ class PreparedORMStatement(PreparedStatement):
         if len(kwargs.keys()) > 0:
             raise ValueError("Unknown parameters supplied for prepared statment: {}".format(" , ".join(kwargs.keys())))
         return super().execute(qry_params)
-
 
     def _execute(self, qry_args):
         if self.is_count_qry is True:
