@@ -11,5 +11,3 @@ COPY test_app/ /code/
 COPY dqp/ ./dqp
 
 CMD ["python", "manage.py", "test"]
-
-# CMD ["tail", "-f", "/dev/null"]

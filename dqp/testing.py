@@ -5,10 +5,20 @@ from dqp.prepared_stmt_controller import PreparedStatementController
 
 class PrepStmtTestMixin:
     """
-    Re-prepare all prepared queries between each test
+    Re-prepare all prepared queries between each test. Used with class based tests
     """
 
     @classmethod
     def setUp(cls):
         PreparedStatementController().deallocate_all()
         PreparedStatementController().prepare_all(force=True)
+
+from dqp.prepared_stmt_controller import PreparedStatementController
+
+
+def prepare_all():
+    """
+    Re-prepare all prepared queries. Call this at the start of every pytest function.
+    """
+    PreparedStatementController().deallocate_all()
+    PreparedStatementController().prepare_all()

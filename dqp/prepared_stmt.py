@@ -5,6 +5,7 @@ import re
 from django.db import connection, OperationalError
 from psycopg2.errors import InvalidSqlStatementName, ProgrammingError
 
+from dqp.constants import Placeholder, ListPlaceholder
 from dqp.query import PreparedStmtQuery
 from dqp.queryset import PreparedQuerySqlBuilder, PreparedStatementQuerySet
 
@@ -164,18 +165,60 @@ class PreparedORMStatement(PreparedStatement):
             raise ValueError(
                 "A prepared ORM statement requires the queryset to be a PreparedQuerySqlBuilder built using the PreparedStatementManager"
             )
-        sql = str(qs)
+        sql, self.params = qs.sql_with_params()
         super().__init__(name, self._modify_sql(sql))
         self.model = qs.model
         self.compiled_sql_data = qs.query.compiled_sql_data
         self.is_get_qry = qs.is_get
         self.is_count_qry = qs.is_count_qry
+        self.params_required = any((isinstance(x, Placeholder) or isinstance(x, ListPlaceholder)) for x in self.params)
 
     @staticmethod
     def _modify_sql(sql):
         # Change from `field IN (%s)` to use postgres specific `field = ANY(%s)` so we can supply any number of args at
         # execution time. I believe this is safe as django never produces sql with named placeholders.
         return IN_REGEX.sub("= ANY(%s)", sql)
+
+    def execute(self, *args, **kwargs):
+        if kwargs == {}:
+            if self.params_required is True:
+                raise ValueError("Not enough parameters supplied to execute prepared statement")
+            elif len(self.params) > 0:
+                return super().execute(self.params)
+            else:
+                return super().execute()
+
+        # Merge the given keyword arguments with any constant arguments returned by django sql compiler
+        qry_params = []
+        for p in self.params:
+            if isinstance(p, Placeholder) or isinstance(p, ListPlaceholder):
+                # It's a standard placeholder value so replace with the passed in parameter value
+                if p.name not in kwargs:
+                    raise ValueError("Missing parameter {} is required to execute prepared statement".format(p.name))
+                qry_params.append(kwargs[p.name])
+                del kwargs[p.name]
+            elif isinstance(p, str) and "dqp.placeholder." in p:
+                # It's a `LIKE` placeholder parameter and has form of either "%param", "%param%" or "param%"
+                parts = [i if len(i) > 0 else "%" for i in p.split("%")]
+                for i, part in enumerate(parts):
+                    if part == "%":
+                        continue
+
+                    arg_name = part.lstrip("dqp.placeholder.")
+                    if arg_name not in kwargs:
+                        raise ValueError("Missing parameter {} is required to execute prepared statement".format(arg_name))
+                    # replace the placehollder name with the actual supplied parameter value
+                    parts[i] = kwargs[arg_name]
+                    del kwargs[arg_name]
+                qry_params.append("".join(parts))
+            else:
+                # It's a parameter that is constant.
+                qry_params.append(p)
+
+        if len(kwargs.keys()) > 0:
+            raise ValueError("Unknown parameters supplied for prepared statment: {}".format(" , ".join(kwargs.keys())))
+        return super().execute(qry_params)
+
 
     def _execute(self, qry_args):
         if self.is_count_qry is True:

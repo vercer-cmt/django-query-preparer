@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "dqp.apps.DQPConfig",
-    "dqp.tests.integration_tests",
+    "test_app.apps.TestAppConfig",
 ]
 
 MIDDLEWARE = [

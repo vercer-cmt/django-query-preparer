@@ -1,65 +1,17 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
-from decimal import Decimal
-from collections import namedtuple
+from collections import UserList
 
-Placeholders = namedtuple(
-    "Placeholders",
-    [
-        "AutoField",
-        "BigAutoField",
-        "BigIntegerField",
-        "BinaryField",
-        "BooleanField",
-        "CharField",
-        "DateField",
-        "DateTimeField",
-        "DecimalField",
-        "DurationField",
-        "EmailField",
-        "FileField",
-        "FilePathField",
-        "FloatField",
-        "ImageField",
-        "IntegerField",
-        "GenericIPAddressField",
-        "NullBooleanField",
-        "PositiveIntegerField",
-        "PositiveSmallIntegerField",
-        "SlugField",
-        "SmallAutoField",
-        "SmallIntegerField",
-        "TextField",
-        "TimeField",
-        "URLField",
-        "UUIDField",
-    ]
-)(
-    AutoField=1,
-    BigAutoField=1,
-    BigIntegerField=1,
-    BinaryField=b"\x01",
-    BooleanField=True,
-    CharField="a",
-    DateField="2000-01-01",
-    DateTimeField="2000-01-01T00:00:00",
-    DecimalField=Decimal("1.0"),
-    DurationField=1,
-    EmailField="a@b.com",
-    FileField="a",
-    FilePathField="a",
-    FloatField=1.0,
-    ImageField="a",
-    IntegerField=1,
-    GenericIPAddressField="a",
-    NullBooleanField=True,
-    PositiveIntegerField=1,
-    PositiveSmallIntegerField=1,
-    SlugField="a",
-    SmallAutoField=1,
-    SmallIntegerField=1,
-    TextField="a",
-    TimeField="00:00:00",
-    URLField="a",
-    UUIDField="a"
-)
+class Placeholder:
+    def __init__(self, name):
+        if "%" in name:
+            raise ValueError("Placeholders cannot contain the % symbol")
+        self.name = name
+    def __repr__(self):
+        return "dqp.placeholder.{}".format(self.name)
+
+
+class ListPlaceholder(UserList):
+    def __init__(self, name):
+        self.name = name
+        self.data = [Placeholder(name)]

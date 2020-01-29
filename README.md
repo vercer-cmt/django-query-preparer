@@ -58,7 +58,7 @@ It's almost as easy to use prepared SQL statements in a Django app:
 3. Decorate this function with the `@register_prepared_sql` decorator.  The decorated functions will be evaluated and prepared in the database when the app receives the `on_ready` signal.
 4. Call `execute_stmt` and pass the function as the prepared statement name.
 
-e.g.:
+e.g:
 
 ```python
 from django.http import JsonResponse
@@ -79,7 +79,7 @@ def view_migrations(request):
 
 #### Basic Usage
 
-You can also prepare queries built using the Django ORM methods, although it's a little more involved.
+You can also prepare queries built using the Django ORM methods.
 
 1. Add `"dqp.apps.DQPConfig"` to your list of `INSTALLED_APPS`.
 2. For the model that you want to prepare the query against, add the `PreparedStatementManager`:
@@ -94,7 +94,7 @@ class MyModel(models.Model):
   alias = models.CharField(max_length=50, blank=True, null=True)
 
   objects = models.Manager()
-  prepare_objects = PreparedStatementManager()  # <-- Here is the PreparedStatementManager!
+  prepare = PreparedStatementManager()  # <-- Here is the PreparedStatementManager!
 ```
 
 3. Write a function that takes no arguments and returns a query set using the `PreparedStatementManager`. Decorate it with the `register_prepared_qs` decorator:
@@ -104,7 +104,7 @@ from dqp import register_prepared_qs
 
 @register_prepared_qs
 def get_all_from_my_model():
-  return MyModel.prepare_objects.all()
+  return MyModel.prepare.all()
 ```
 
 4. Call `execute_stmt()`. It will return a `PreparedStatementQuerySet`:
@@ -117,38 +117,44 @@ from dqp.queryset import PreparedStatementQuerySet
 isinstance(qs, PreparedStatementQuerySet)  # -> True
 ```
 
-You can use placeholder types when preparing querysets with input arguments:
+You can use a placeholder when preparing query sets with input arguments:
 
 ```python
-from dqp import register_prepared_qs, Placeholders
+from dqp import register_prepared_qs, Placeholder
 
 @register_prepared_qs
 def get_my_model_lt():
-  return MyModel.prepare_objects.filter(id__lt=Placeholders.AutoField)
+  return MyModel.prepare.filter(id__lt=Placeholder("id"))
 
-execute_stmt(get_my_model_lt(), [4])
+execute_stmt(get_my_model_lt(), id=4)
 ```
 
-Remember that the second input argument to `execute_stmt` is always an iterable!
+You have to name your placeholders and then use those names as keyword arguments to `execute_stmt`. This is because Django can re-order the filters so there's no guarantee that the order in which you specify the filters in the ORM functions will be the order they appear in the executed SQL.
 
-If you want to use lists as inputs you can do that too:
+If you want to use lists as inputs you can use `ListPlaceholder`:
 ```python
+from dqp import register_prepared_qs, ListPlaceholder
+
 @register_prepared_qs
 def get_my_model_in():
-  #                                          # Note that this is a list of ONE element
-  return MyModel.prepare_objects.filter(id__in=[Placeholders.AutoField])
+  return MyModel.prepare.filter(id__in=ListPlaceholder("ids"))
 
-#                             # The first (and only) argument is a list, but it can contain as many elements as required
-execute_stmt(get_my_model_in(), [[4, 5]])
+execute_stmt(get_my_model_in(), ids=[4, 5])
 ```
 
-A gotcha would be to try and execute the prepared statement as
+Each placeholder must have a unique name within the same query. You can mix and match constant and passed in parameters:
 
 ```python
-execute_stmt(get_my_model_in(), [4, 5])
+from dqp import register_prepared_qs, ListPlaceholder
+
+@register_prepared_qs
+def get_active_in_range():
+  return MyModel.prepare.filter(id__in=ListPlaceholder("ids"), active=True)
+
+execute_stmt(get_active_in_range(), ids=range(10))
 ```
 
-but this is two arguments which are integer, not one argument which is a list-of-integers.
+
 
 ### Limitations
 
@@ -171,7 +177,7 @@ You cannot use `prefetch_related` when preparing a query:
 ```python
 @register_prepared_qs
 def get_my_model_lt():
-  return MyModel.prepare_objects.filter(id__lt=Placeholders.AutoField).prefetch_related('related_field')
+  return MyModel.prepare.filter(id__lt=Placeholder).prefetch_related('related_field')
 
 > PreparedQueryNotSupported: Cannot use prefetch_related when preparing queysets. Add the prefetch related to the returned queryset on statement execution
 ```
@@ -181,7 +187,7 @@ As the error says, you must use the prefetch related AFTER executing the prepare
 ```python
 @register_prepared_qs
 def get_my_model_lt():
-  return MyModel.prepare_objects.filter(id__lt=Placeholders.AutoField)
+  return MyModel.prepare.filter(id__lt=Placeholder)
 
 qs = execute_stmt(get_my_model_lt(), [4])
 qs = qs.prefetch_related('related_field')
@@ -200,16 +206,27 @@ MyModel.objects.count()
 # Prepared statement usage
 @prepare_qs
 def my_model_count():
-  return MyModel.prepare_objects.count()
+  return MyModel.prepare.count()
 # > no result - not executed yet
 
 execute_stmt(my_model_count())
 # > 12
 ```
 
-A query prepared using `get()` will return a model instance, not a query set as in normal Django usage when executed or will raise the same exceptions if zero or more than one rows match the filter.
+A query prepared using `get()`, `first()`, `last()`, `latest()` and `earliest()` follows the Django behaviour when executed and will return a model instance, not a query set, or it will raise the same exceptions if zero or more than one rows match the filter.
 
-You can use  `count()`, `first()` and `last()` on a `PreparedStatementQuerySet` but you can't use `get()`, `filter()`, `latest()` or `earliest()`. You'll need to use python's built-in `filter` and `sorted` methods (or use these functions when preparing the query!).
+```python
+@prepare_qs
+def my_model_get():
+  return MyModel.prepare.get(id=1)
+# > no result - not executed yet
+
+qs = execute_stmt(my_model_get())
+isinstance(qs, MyModel)
+# > True
+```
+
+You can use  `count()`, `first()` and `last()` on a `PreparedStatementQuerySet` but you can't use `get()`, `filter()`, `latest()` or `earliest()`. You'll need to use python's built-in `filter` and `sorted` methods to further filter or order the results of an executed prepared statement.
 
 ## Configuration
 
@@ -217,9 +234,9 @@ As noted, add `"dqp.apps.DQPConfig"` to your list of `INSTALLED_APPS`.
 
 You can control whether the registered queries are prepared when the app is ready by setting `DQP_PREPARE_ON_APP_START`. It defaults to `True`. If you do not want queries to be prepared on ap start (perhaps because you haven't run the migrations to create the schema in your database yet or because you're running tests) then set this to `False`.  If `DQP_DB_PREPARE_ON_APP_START` is `False` then you must remember to manually prepare your statements (by calling `PreparedStatementController().prepare_sql_stmt()` or `PreparedStatementController().prepare_qs_stmt()`).
 
-## Tests
+## Using `dqp` in tests
 
-### Unit test
+### Unittest
 
 Prepared queries are stored per database session in postgres. But database sessions are restarted between each test by Django. To make sure that all you prepared statements are re-prepared before every test add the `PrepStmtTestMixin` to your test class:
 
@@ -227,7 +244,7 @@ Prepared queries are stored per database session in postgres. But database sessi
 from django.test import TestCase
 from dqp.testing import PrepStmtTestMixin
 
-class MyTests(PrepStmtTestMixin, TestCase):
+class MyTests(TestCase, PrepStmtTestMixin):
     @classmethod
     def setUp(cls):
       # If you have a setUp method in your test class then you'll need to call super().setUp()
@@ -243,4 +260,14 @@ As re-preparing the statements does take a small amount of time you should only 
 
 ### Pytest
 
-TBW.
+You can use the `prepare_all` function to prepare statements at the start of any test that requires it:
+
+```python
+import pytest
+from dqp.testing import prepare_all
+
+@pytest.mark.django_db(transaction=True)
+def test_stuff():
+    prepare_all()
+    # testing code...
+```

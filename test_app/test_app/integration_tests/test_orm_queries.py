@@ -1,13 +1,14 @@
 import warnings
 
+from django.db.models import Q
 from django.test import TestCase, TransactionTestCase
 
-from dqp import execute_stmt, Placeholders
-from dqp.tests.integration_tests.models import Species, Animal
+from dqp import execute_stmt, Placeholder, ListPlaceholder
 from dqp.prepared_stmt_controller import PreparedStatementController
 from dqp.queryset import PreparedStatementQuerySet
 from dqp.exceptions import CannotAlterPreparedStatementQuerySet, PreparedQueryNotSupported
 
+from test_app.models import Species, Animal
 
 class TestORMQueries(TestCase):
     @classmethod
@@ -35,45 +36,120 @@ class TestORMQueries(TestCase):
 
     def test_prepare_filter(self):
         def filter_species():
-            return Species.prepare.filter(name__icontains=Placeholders.CharField)
+            return Species.prepare.filter(name=Placeholder("name"))
 
         PreparedStatementController().register_qs("filter_species", filter_species)
         PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
 
-        # N.B. __icontains doesn't work the same as in normal django.
-        # TODO: fix this (see below).
-        qs = execute_stmt("filter_species", ["%car%"])
+        qs = execute_stmt("filter_species", name="Carp")
 
         self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
         self.assertEqual(len(qs), 1)
         self.assertTrue(isinstance(qs[0], Species))
         self.assertTrue(qs[0].name, self.carp.name)
 
+    def test_prepare_in(self):
+        def filter_species_in():
+            return Species.prepare.filter(id__in=ListPlaceholder("ids")).order_by("id")
+
+        PreparedStatementController().register_qs("filter_species_in", filter_species_in)
+        PreparedStatementController().prepare_qs_stmt("filter_species_in", force=True)
+
+        qs = execute_stmt("filter_species_in", ids=[self.carp.id, self.crow.id])
+
+        self.assertEqual(len(qs), 2)
+        self.assertTrue(qs[0].id, self.crow.id)
+        self.assertTrue(qs[1].id, self.carp.id)
+
     def test_prepare_icontains(self):
-        warnings.warn("test_prepare_icontains is not implemented")
+        def filter_species_like():
+            return Species.prepare.filter(name__icontains=Placeholder("name"))
+
+        PreparedStatementController().register_qs("filter_species_like", filter_species_like)
+        PreparedStatementController().prepare_qs_stmt("filter_species_like", force=True)
+
+        qs = execute_stmt("filter_species_like", name="car")
+
+        self.assertEqual(len(qs), 1)
+        self.assertTrue(isinstance(qs[0], Species))
+        self.assertTrue(qs[0].name, self.carp.name)
 
     def test_filter_with_constant(self):
-        warnings.warn("test_filter_with_constant is not implemented")
-        # def filter_species():
-        #     return Species.prepare.filter(pk=self.crow.pk)
-        #
-        # PreparedStatementController().register_qs("filter_species", filter_species)
-        # PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
-        #
-        # # This currently breaks because self.crow.pk has been forgotten and the execute statement expects a parameter
-        # # to be passed in!
-        # qs = execute_stmt("filter_species")
-        #
-        # self.assertTrue(qs[0].name, self.crow.name)
+        def filter_species():
+            return Species.prepare.filter(pk=self.crow.pk)
+
+        PreparedStatementController().register_qs("filter_species", filter_species)
+        PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
+
+        qs = execute_stmt("filter_species")
+
+        self.assertTrue(qs[0].name, self.crow.name)
+
+    def test_filter_wth_mixed_params(self):
+        def filter_species():
+            return Species.prepare.filter(Q(pk=self.crow.pk) | Q(pk=Placeholder("pk"))).order_by("pk")
+
+        PreparedStatementController().register_qs("filter_species", filter_species)
+        PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
+
+        qs = execute_stmt("filter_species", pk=self.tiger.pk)
+
+        self.assertEqual(len(qs), 2)
+        self.assertTrue(qs[0].name, self.tiger.name)
+        self.assertTrue(qs[1].name, self.crow.name)
+
+    def test_filter_not_enough_params(self):
+        def filter_species():
+            return Species.prepare.filter(Q(pk=self.crow.pk) | Q(pk=Placeholder("pk")))
+
+        PreparedStatementController().register_qs("filter_species", filter_species)
+        PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
+
+        # And again with no params
+        with self.assertRaises(ValueError) as ctx:
+            qs = execute_stmt("filter_species")
+        self.assertEqual(str(ctx.exception), "Not enough parameters supplied to execute prepared statement")
+
+    def test_filter_missing_param(self):
+        def filter_species():
+            return Species.prepare.filter(Q(pk=self.crow.pk) | Q(pk=Placeholder("pk")) | Q(pk=Placeholder("pk2")))
+
+        PreparedStatementController().register_qs("filter_species", filter_species)
+        PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
+
+        # And again with no params
+        with self.assertRaises(ValueError) as ctx:
+            qs = execute_stmt("filter_species", pk=1)
+        self.assertEqual(str(ctx.exception), "Missing parameter pk2 is required to execute prepared statement")
+
+    def test_all_params_have_unique_names(self):
+        def filter_species():
+            return Species.prepare.filter(Q(pk=Placeholder("pk")) | Q(pk=Placeholder("pk")))
+
+        PreparedStatementController().register_qs("filter_species", filter_species)
+        with self.assertRaises(NameError) as ctx:
+            PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
+        self.assertEqual(str(ctx.exception), "Repeated placeholder name: pk. All placeholders in a query must have unique names.")
+
+    def test_filter_too_many_params(self):
+        def filter_species():
+            return Species.prepare.filter(Q(pk=self.crow.pk) | Q(pk=Placeholder("pk"))).order_by("pk")
+
+        PreparedStatementController().register_qs("filter_species", filter_species)
+        PreparedStatementController().prepare_qs_stmt("filter_species", force=True)
+
+        with self.assertRaises(ValueError) as ctx:
+            qs = execute_stmt("filter_species", pk=1, pk2=2, pk3=3)
+        self.assertEqual(str(ctx.exception), "Unknown parameters supplied for prepared statment: pk2 , pk3")
 
     def test_prepare_get(self):
         def get_species():
-            return Species.prepare.get(name=Placeholders.CharField)
+            return Species.prepare.get(name=Placeholder("name"))
 
         PreparedStatementController().register_qs("get_species", get_species)
         PreparedStatementController().prepare_qs_stmt("get_species", force=True)
 
-        qs = execute_stmt("get_species", ["Carp"])
+        qs = execute_stmt("get_species", name="Carp")
 
         self.assertTrue(isinstance(qs, Species))
         self.assertTrue(qs.name, self.tiger.name)
@@ -178,12 +254,12 @@ class TestORMQueries(TestCase):
         Animal.objects.update_or_create(name="Sheer Kahn", species=self.tiger)
 
         def qry():
-            return Species.prepare.filter(name=Placeholders.CharField)
+            return Species.prepare.filter(name=Placeholder("name"))
 
         PreparedStatementController().register_qs("qry", qry)
         PreparedStatementController().prepare_qs_stmt("qry", force=True)
 
-        qs = execute_stmt("qry", ["Tiger"])
+        qs = execute_stmt("qry", name="Tiger")
 
         # Now add the prefetch related, which should execute one query.
         with self.assertNumQueries(1):

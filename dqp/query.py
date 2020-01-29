@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from django.db import DEFAULT_DB_ALIAS, connections
 from django.db.models.sql.query import Query
 
+from dqp.constants import Placeholder, ListPlaceholder
 from dqp.sql_compiler import CompiledSQLData, NoExecutionSQLCompiler, PreparedStmtCompiler
 
 
@@ -19,6 +20,7 @@ class PreparedSQLQuery(Query):
         super().__init__(*args, **kawrgs)
         self.compiled_sql_data = CompiledSQLData()
         self.is_count_qry = False
+        self.placeholder_names = set()
 
     def count(self):
         self.is_count_qry = True
@@ -32,6 +34,23 @@ class PreparedSQLQuery(Query):
         if using:
             connection = connections[using]
         return NoExecutionSQLCompiler(self, connection, using, is_count_qry=self.is_count_qry)
+
+    def build_lookup(self, lookups, lhs, rhs):
+        if isinstance(rhs, Placeholder) or isinstance(rhs, ListPlaceholder):
+            if rhs.name in self.placeholder_names:
+                raise NameError("Repeated placeholder name: {}. All placeholders in a query must have unique names.".format(rhs.name))
+            self.placeholder_names.add(rhs.name)
+            # Hack - if the rhs is a placeholder then we just want to return the placeholder when the
+            # value is prepared against the lhs field type.
+            _f = lhs.output_field.get_prep_value
+            lhs.output_field.get_prep_value = lambda x: x
+        lookup = super().build_lookup(lookups, lhs, rhs)
+
+        if isinstance(rhs, Placeholder) or isinstance(rhs, ListPlaceholder):
+            # Restore the get_prep_value function to its original for the next use (which may not be in a prepared qry)
+            lhs.output_field.get_prep_value = _f
+
+        return lookup
 
     def sql_with_params(self):
         """

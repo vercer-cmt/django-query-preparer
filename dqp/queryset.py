@@ -2,6 +2,7 @@
 
 from django.db.models.query import QuerySet
 
+from dqp.constants import Placeholder
 from dqp.exceptions import (
     PreparedQueryNotSupported,
     CannotAlterPreparedStatementQuerySet,
@@ -80,12 +81,16 @@ class PreparedQuerySqlBuilder(PreparedQuerySetBase):
         self.is_count_qry = False
 
     def __repr__(self):
-        sql, _ = self.query.sql_with_params()
-        return sql
+        sql, params = self.sql_with_params()
+        params = tuple([("%s" if p == Placeholder else p) for p in params])
+        return sql % params
 
     def _fetch_all(self):
         """ _fetch_all does nothing: the PreparedQuerySqlBuilder only builds the sql, it cannot execute it. """
         self._result_cache = ()
+
+    def sql_with_params(self):
+        return self.query.sql_with_params()
 
     def prefetch_related(self, *lookups):
         raise PreparedQueryNotSupported(

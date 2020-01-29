@@ -89,5 +89,5 @@ class PreparedStatementController:
         self.prepared_statements = {}
 
 
-def execute_stmt(stmt_name, qry_args=None):
-    return PreparedStatementController().execute(stmt_name, qry_args)
+def execute_stmt(stmt_name, *args, **kwargs):
+    return PreparedStatementController().execute(stmt_name, *args, **kwargs)
