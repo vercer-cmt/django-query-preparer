@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /code
 
 COPY requirements.txt .
-RUN pip install pip==19.3.1
+RUN pip install pip==20.0.2
 RUN pip install -r requirements.txt
 
 COPY test_app/ /code/

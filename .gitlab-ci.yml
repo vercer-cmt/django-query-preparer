@@ -13,4 +13,5 @@ stages:
 build_and_test:
   stage: test
   script:
-  - docker-compose up --build dqp
+  - docker-compose up -d db
+  - docker-compose up dqp
