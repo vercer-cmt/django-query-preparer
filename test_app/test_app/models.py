@@ -1,10 +1,11 @@
+# Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
+
 from django.db import models
 
 from dqp.manager import PreparedStatementManager
 
-# Fake models used only in the tests
 
-
+# Models used by the tests
 class Species(models.Model):
     name = models.CharField(max_length=50)
 

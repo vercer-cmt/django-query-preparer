@@ -218,7 +218,7 @@ class PreparedORMStatement(PreparedStatement):
                 qry_params.append(p)
 
         if len(kwargs.keys()) > 0:
-            raise ValueError("Unknown parameters supplied for prepared statment: {}".format(" , ".join(kwargs.keys())))
+            raise ValueError("Unknown parameters supplied for prepared statement: {}".format(" , ".join(kwargs.keys())))
         return super().execute(qry_params)
 
     def _execute(self, qry_args):

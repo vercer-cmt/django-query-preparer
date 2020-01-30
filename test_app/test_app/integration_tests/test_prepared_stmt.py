@@ -1,3 +1,5 @@
+# Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
+
 from django.db import connection
 from django.test import TransactionTestCase
 from psycopg2.errors import ProgrammingError
@@ -161,5 +163,3 @@ class TestPreparedStatement(TransactionTestCase):
         self.assertEqual(results, expected_results)
         self.assertTrue(ps._check_stmt_is_prepared())
 
-
-# TestPreparedORMStatement tested elsewhere as it's not exposed by the API

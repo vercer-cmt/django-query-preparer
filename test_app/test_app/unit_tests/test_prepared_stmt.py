@@ -1,3 +1,5 @@
+# Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
+
 from django.test import TestCase
 from psycopg2.errors import ProgrammingError
 

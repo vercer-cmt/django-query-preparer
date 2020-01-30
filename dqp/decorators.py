@@ -58,7 +58,7 @@ def prepare_sql(func):
     """
     stmt_name = f"{func.__module__}.{func.__name__}"
     PreparedStatementController().register_sql(stmt_name, func)
-    PreparedStatementController().prepare_sql_stmt(stmt_name)
+    PreparedStatementController().prepare_sql_stmt(stmt_name, force=False)
     return lambda: stmt_name
 
 
@@ -77,5 +77,5 @@ def prepare_qs(func):
     """
     stmt_name = f"{func.__module__}.{func.__name__}"
     PreparedStatementController().register_qs(stmt_name, func)
-    PreparedStatementController().prepare_qs_stmt(stmt_name)
+    PreparedStatementController().prepare_qs_stmt(stmt_name, force=False)
     return lambda: stmt_name

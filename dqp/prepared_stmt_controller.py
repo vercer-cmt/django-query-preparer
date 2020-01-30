@@ -1,6 +1,6 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
-from dqp.exceptions import StatementAlreadyPreparedException, StatementNotPreparedException
+from dqp.exceptions import StatementAlreadyPreparedException, StatementNotPreparedException, StatementNotRegistered
 from dqp.prepared_stmt import PreparedStatement, PreparedORMStatement
 
 
@@ -16,6 +16,16 @@ class PreparedStatementController:
         if cls.__singleton_instance is None:
             cls.__singleton_instance = object.__new__(cls)
         return cls.__singleton_instance
+
+    def destroy(self):
+        """
+        Destroy thisd instance of the singleton (used in tests)
+        """
+        self.deallocate_all()
+        self.sql_generating_functions = {}
+        self.qs_generating_functions = {}
+        self.__singleton_instance = None
+        del self
 
     def register_sql(self, stmt_name, func):
         """
@@ -53,6 +63,9 @@ class PreparedStatementController:
             self.prepared_statements[stmt_name].deallocate()
             del self.prepared_statements[stmt_name]
 
+        if stmt_name not in self.sql_generating_functions:
+            raise StatementNotRegistered("Statement {} has not been registered before preparation".format(stmt_name))
+
         stmt_sql = self.sql_generating_functions[stmt_name]()
         self.prepared_statements[stmt_name] = PreparedStatement(stmt_name, stmt_sql)
         self.prepared_statements[stmt_name].prepare()
@@ -68,6 +81,9 @@ class PreparedStatementController:
 
             self.prepared_statements[stmt_name].deallocate()
             del self.prepared_statements[stmt_name]
+
+        if stmt_name not in self.qs_generating_functions:
+            raise StatementNotRegistered("Statement {} has not been registered before preparation".format(stmt_name))
 
         stmt_qs = self.qs_generating_functions[stmt_name]()
         self.prepared_statements[stmt_name] = PreparedORMStatement(stmt_name, stmt_qs)

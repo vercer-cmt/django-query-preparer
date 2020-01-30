@@ -19,3 +19,7 @@ class CannotAlterPreparedStatementQuerySet(Exception):
 
 class PreparedStatementNotYetExecuted(Exception):
     pass
+
+
+class StatementNotRegistered(Exception):
+    pass
