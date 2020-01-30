@@ -1,5 +1,6 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
+from dqp.constants import FailureBehaviour
 from dqp.exceptions import StatementAlreadyPreparedException, StatementNotPreparedException, StatementNotRegistered
 from dqp.prepared_stmt import PreparedStatement, PreparedORMStatement
 
@@ -19,7 +20,7 @@ class PreparedStatementController:
 
     def destroy(self):
         """
-        Destroy thisd instance of the singleton (used in tests)
+        Destroy this instance of the singleton (used in tests)
         """
         self.deallocate_all()
         self.sql_generating_functions = {}
@@ -41,17 +42,17 @@ class PreparedStatementController:
         """
         self.qs_generating_functions[stmt_name] = func
 
-    def prepare_all(self, force=True):
+    def prepare_all(self, force=True, on_fail=FailureBehaviour.ERROR):
         """
         Prepare the SQL output of all registered functions in the database.
         """
         for stmt_name in self.sql_generating_functions.keys():
-            self.prepare_sql_stmt(stmt_name, force)
+            self.prepare_sql_stmt(stmt_name, force, on_fail)
 
         for stmt_name in self.qs_generating_functions.keys():
-            self.prepare_qs_stmt(stmt_name, force)
+            self.prepare_qs_stmt(stmt_name, force, on_fail)
 
-    def prepare_sql_stmt(self, stmt_name, force):
+    def prepare_sql_stmt(self, stmt_name, force, on_fail=FailureBehaviour.ERROR):
         """
         Prepares an SQL statement in the db. If force is True and the statement is already prepared then it is deallocated
         and re-prepared, otherwise an error is thrown if a re-preparation is attempted.
@@ -68,9 +69,9 @@ class PreparedStatementController:
 
         stmt_sql = self.sql_generating_functions[stmt_name]()
         self.prepared_statements[stmt_name] = PreparedStatement(stmt_name, stmt_sql)
-        self.prepared_statements[stmt_name].prepare()
+        self.prepared_statements[stmt_name].prepare(on_fail)
 
-    def prepare_qs_stmt(self, stmt_name, force):
+    def prepare_qs_stmt(self, stmt_name, force, on_fail=FailureBehaviour.ERROR):
         """
         Prepares an queryset statement in the db. If force is True and the statement is already prepared then it is
         deallocated and re-prepared, otherwise an error is thrown if a re-preparation is attempted.
@@ -87,7 +88,7 @@ class PreparedStatementController:
 
         stmt_qs = self.qs_generating_functions[stmt_name]()
         self.prepared_statements[stmt_name] = PreparedORMStatement(stmt_name, stmt_qs)
-        self.prepared_statements[stmt_name].prepare()
+        self.prepared_statements[stmt_name].prepare(on_fail)
 
     def execute(self, stmt_name, *args, **kwargs):
         if stmt_name not in self.prepared_statements.keys():

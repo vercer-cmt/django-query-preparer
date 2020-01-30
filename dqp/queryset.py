@@ -12,7 +12,7 @@ from dqp.query import PreparedSQLQuery, PreparedStmtQuery
 
 
 class PreparedQuerySetBase(QuerySet):
-    # Methods that are need to be implmented by inheriting classes
+    # Methods that need to be implemented by inheriting classes
     def _fetch_all(self):
         raise NotImplementedError
 

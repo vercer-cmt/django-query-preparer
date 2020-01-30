@@ -1,6 +1,7 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
 from collections import UserList
+from enum import Enum
 
 
 class Placeholder:
@@ -17,3 +18,8 @@ class ListPlaceholder(UserList):
     def __init__(self, name):
         self.name = name
         self.data = [Placeholder(name)]
+
+
+class FailureBehaviour(Enum):
+    ERROR = "error"
+    WARN  = "warn"

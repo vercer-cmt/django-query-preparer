@@ -228,11 +228,13 @@ isinstance(qs, MyModel)
 
 You can use  `count()`, `first()` and `last()` on a `PreparedStatementQuerySet` but you can't use `get()`, `filter()`, `latest()` or `earliest()`. You'll need to use python's built-in `filter` and `sorted` methods to further filter or order the results of an executed prepared statement.
 
+## Start-up Behaviour
+
+Django-query-preparer will attempt to prepare all registered queries on app start-up when it receives the on-ready signal from Django.  Sometimes this will fail, e.g. because a table or column in one of your prepared queries hasn't been created by a migration yet, or because you're running tests and there's no schema!  In these cases, `dqp` will catch the error and log it as a `warning`. Then when the prepared statement is executed for the first time (for each process) it will try again to prepare the query before execution. If it fails again then the error will be raised.  We feel that this offers the best compromise between performance and pragmatism.
+
 ## Configuration
 
 As noted, add `"dqp.apps.DQPConfig"` to your list of `INSTALLED_APPS`.
-
-You can control whether the registered queries are prepared when the app is ready by setting `DQP_PREPARE_ON_APP_START`. It defaults to `True`. If you do not want queries to be prepared on ap start (perhaps because you haven't run the migrations to create the schema in your database yet or because you're running tests) then set this to `False`.  If `DQP_DB_PREPARE_ON_APP_START` is `False` then you must remember to manually prepare your statements (by calling `PreparedStatementController().prepare_sql_stmt()` or `PreparedStatementController().prepare_qs_stmt()`).
 
 ## Using `dqp` in tests
 

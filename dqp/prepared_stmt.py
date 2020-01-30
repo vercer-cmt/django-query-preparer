@@ -1,13 +1,18 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
 import re
+import logging
 
 from django.db import connection, OperationalError
 from psycopg2.errors import InvalidSqlStatementName, ProgrammingError
 
-from dqp.constants import Placeholder, ListPlaceholder
+from dqp.constants import Placeholder, ListPlaceholder, FailureBehaviour
 from dqp.query import PreparedStmtQuery
 from dqp.queryset import PreparedQuerySqlBuilder, PreparedStatementQuerySet
+
+
+logger = logging.getLogger(__name__)
+
 
 NAMED_PLACEHOLDER_REGEX = re.compile("(%\([\w-]+\)s)")
 PLACEHOLDER_REGEX = re.compile("(%s)")
@@ -32,12 +37,18 @@ class PreparedStatement:
         # statements in postgres so replace "." by "__"
         self.pg_name = self.name.replace(".", "__")
 
-    def prepare(self):
+    def prepare(self, on_fail=FailureBehaviour.ERROR):
         self._prepare_input_sql()
         self._create_exec_stmt()
 
-        with connection.cursor() as cursor:
-            cursor.execute("""PREPARE {} AS {}""".format(self.pg_name, self.sql))
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""PREPARE {} AS {}""".format(self.pg_name, self.sql))
+        except Exception as e:
+            if on_fail == FailureBehaviour.WARN:
+                logger.warning("Could not prepare query: {}".format(e))
+            else:
+                raise
 
     def _prepare_input_sql(self):
         """
@@ -65,7 +76,7 @@ class PreparedStatement:
 
         Because we want the calling code to be able to generate SQL using the placeholders we do the replacement here.
 
-        N.B. Mixing named and unamed placeholders is not allowed. Use one or the other.
+        N.B. Mixing named and un-named placeholders is not allowed. Use one or the other.
         """
         sql = self.input_sql.lower().strip()
         if sql[-1] == ";":
@@ -83,7 +94,7 @@ class PreparedStatement:
                 sql_as_list[i] = PLACEHOLDER_REGEX.sub("${}".format(counter), token)
 
         if counter > 0:
-            # If we have found unnamed placeholders then we don't allow any named placeholders.
+            # If we have found un-named placeholders then we don't allow any named placeholders.
             unnamed_params_only = True
 
         # Now check for named placeholders
@@ -92,7 +103,7 @@ class PreparedStatement:
             match = NAMED_PLACEHOLDER_REGEX.search(token)
             if match is not None and len(match.groups()) == 1:
                 if unnamed_params_only is True:
-                    raise ProgrammingError("Cannot match named and unnamed placeholder values in a prepared statement")
+                    raise ProgrammingError("Cannot match named and un-named placeholder values in a prepared statement")
                 placeholder = match.groups()[0]
                 named_placeholders.append(placeholder)
                 counter += 1
