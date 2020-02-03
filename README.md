@@ -236,6 +236,24 @@ Django-query-preparer will attempt to prepare all registered queries on app star
 
 As noted, add `"dqp.apps.DQPConfig"` to your list of `INSTALLED_APPS`.
 
+Prepared statements in postgres are only valid for the duration of the database session. So if you start a new database session then any prepared statements that have been previously prepared will be lost.  To make use of prepared statements in Django you'll need to make sure that your Django app doesn't create a new database connection for every request. You can use the `CONN_MAX_AGE` parameter to force Django to re-use database connections.  Alternatively you can use `pgbouncer` (see below) to pool your db connections.
+
+## Using with Celery
+
+Celery creates a new database connection for every job.  This means that you cannot use prepared statements without some sort of connection pooling, e.g. `pgbouncer`.
+
+## Using with `pgbouncer`
+
+While `pgbouncer` will re-use a database connection between, by default it will run `DISCARD ALL` before returning a session back to the pool to be re-used. This will deallocate all prepared queries. To get around this, set the  `server_reset_query` config item to be `"SET SESSION AUTHORIZATION DEFAULT; RESET ALL; CLOSE ALL; UNLISTEN *; SELECT pg_advisory_unlock_all(); DISCARD SEQUENCES; DISCARD TEMP;"` in your `pgbouncer` config.
+
+## Common errors
+
+```
+ProgrammingError: can't adapt type 'PreparedStatementQuerySet'
+```
+
+This is caused by passing a query set into `execute_stmt` rather than a primitive type, or more likely a list of primitive types. If you have a set of values from another query set then you need to call `list()` on them to convert form a query set to a list.
+
 ## Using `dqp` in tests
 
 ### Unittest

@@ -48,11 +48,17 @@ class PreparedSQLQuery(Query):
             # value is prepared against the lhs field type.
             _f = lhs.output_field.get_prep_value
             lhs.output_field.get_prep_value = lambda x: x
+            if hasattr(lhs.output_field, "get_path_info"):
+                _ff = lhs.output_field.get_path_info()[-1].target_fields[-1].get_prep_value
+                lhs.output_field.get_path_info()[-1].target_fields[-1].get_prep_value = lambda x: x
+
         lookup = super().build_lookup(lookups, lhs, rhs)
 
         if isinstance(rhs, Placeholder) or isinstance(rhs, ListPlaceholder):
-            # Restore the get_prep_value function to its original for the next use (which may not be in a prepared qry)
+            # Restore the get_prep_value functions to their original for the next use (which may not be in a prepared qry)
             lhs.output_field.get_prep_value = _f
+            if hasattr(lhs.output_field, "get_path_info"):
+                lhs.output_field.get_path_info()[-1].target_fields[-1].get_prep_value = _ff
 
         return lookup
 

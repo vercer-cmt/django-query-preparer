@@ -8,7 +8,7 @@ from dqp.prepared_stmt_controller import PreparedStatementController
 from dqp.queryset import PreparedStatementQuerySet
 from dqp.exceptions import CannotAlterPreparedStatementQuerySet, PreparedQueryNotSupported
 
-from test_app.models import Species, Animal
+from test_app.models import Species, Animal, Items
 
 
 class TestORMQueries(TestCase):
@@ -39,7 +39,7 @@ class TestORMQueries(TestCase):
         self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
         self.assertEqual(len(qs), 3)
         self.assertTrue(isinstance(qs[0], Species))
-        self.assertTrue(qs[0].name, self.tiger.name)
+        self.assertEqual(qs[0].name, self.tiger.name)
 
     def test_prepare_filter(self):
         """
@@ -60,7 +60,92 @@ class TestORMQueries(TestCase):
         self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
         self.assertEqual(len(qs), 1)
         self.assertTrue(isinstance(qs[0], Species))
-        self.assertTrue(qs[0].name, self.carp.name)
+        self.assertEqual(qs[0].name, self.carp.name)
+
+    def test_related_id_filter(self):
+        """
+        Given an ORM query is prepared with a filter on the id of a related model
+        And   the filter is a Placeholder
+        When  the prepared statement is executed with a keyword argument for the filter
+        And   the filter is a related model id
+        Then  only the records which match the filter will be returned in a query set
+        """
+        Animal.objects.update_or_create(name="Tigger", species=self.tiger)
+        Animal.objects.update_or_create(name="Jack Daw", species=self.crow)
+        Animal.objects.update_or_create(name="C. Orvid", species=self.crow)
+        Animal.objects.update_or_create(name="Koi", species=self.carp)
+
+        def filter_animals():
+            return Animal.prepare.filter(species_id=Placeholder("species_id")).order_by("id")
+
+        PreparedStatementController().register_qs("filter_animals", filter_animals)
+        PreparedStatementController().prepare_qs_stmt("filter_animals", force=True)
+
+        qs = execute_stmt("filter_animals", species_id=self.crow.id)
+
+        self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
+        self.assertEqual(len(qs), 2)
+        self.assertEqual(qs[0].name, "Jack Daw")
+        self.assertEqual(qs[1].name, "C. Orvid")
+
+    def test_doubly_related_id_filter(self):
+        """
+        Given an ORM query is prepared with a filter on the id of a related model
+        And   the filter is a Placeholder
+        When  the prepared statement is executed with a keyword argument for the filter
+        And the filter is related by two foreign keys
+        Then  only the records which match the filter will be returned in a query set
+        """
+        a1 = Animal.objects.create(name="Jack Daw", species=self.crow)
+        a2 = Animal.objects.create(name="C. Orvid", species=self.crow)
+        a3 = Animal.objects.create(name="Tigger", species=self.tiger)
+
+        Items.objects.update_or_create(description="bird cage", animal=a1)
+        Items.objects.update_or_create(description="whistle", animal=a1)
+        Items.objects.update_or_create(description="bag of seeds", animal=a2)
+        Items.objects.update_or_create(description="honey", animal=a3)
+
+        def filter_items():
+            return Items.prepare.filter(animal__species_id=Placeholder("species_id")).order_by("id")
+
+        PreparedStatementController().register_qs("filter_items", filter_items)
+        PreparedStatementController().prepare_qs_stmt("filter_items", force=True)
+
+        qs = execute_stmt("filter_items", species_id=self.crow.id)
+
+        self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
+        self.assertEqual(len(qs), 3)
+        self.assertEqual(qs[0].description, "bird cage")
+        self.assertEqual(qs[1].description, "whistle")
+        self.assertEqual(qs[2].description, "bag of seeds")
+
+    def test_related_filter(self):
+        """
+        Given an ORM query is prepared with a filter on a field in a related model
+        And   the filter is a Placeholder
+        When  the prepared statement is executed with a keyword argument for the filter
+        And   the filter is a __ relation
+        Then  only the records which match the filter will be returned in a query set
+        """
+        Animal.objects.update_or_create(name="Tigger", species=self.tiger)
+        Animal.objects.update_or_create(name="Jack Daw", species=self.crow)
+        Animal.objects.update_or_create(name="C. Orvid", species=self.crow)
+        Animal.objects.update_or_create(name="Koi", species=self.carp)
+
+        def filter_animals():
+            # Note the use of the double underscore here compared to test_related_id_filter
+            return Animal.prepare.filter(species__id=Placeholder("species_id")).order_by("id")
+
+        PreparedStatementController().register_qs("filter_animals", filter_animals)
+        PreparedStatementController().prepare_qs_stmt("filter_animals", force=True)
+
+        qs = execute_stmt("filter_animals", species_id=self.crow.id)
+
+        self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
+        self.assertEqual(len(qs), 2)
+        self.assertEqual(qs[0].name, "Jack Daw")
+        self.assertEqual(qs[1].name, "C. Orvid")
+
 
     def test_prepare_in(self):
         """
@@ -79,8 +164,8 @@ class TestORMQueries(TestCase):
         qs = execute_stmt("filter_species_in", ids=[self.carp.id, self.crow.id])
 
         self.assertEqual(len(qs), 2)
-        self.assertTrue(qs[0].id, self.crow.id)
-        self.assertTrue(qs[1].id, self.carp.id)
+        self.assertEqual(qs[0].id, self.carp.id)
+        self.assertEqual(qs[1].id, self.crow.id)
 
     def test_prepare_icontains(self):
         """
@@ -99,7 +184,7 @@ class TestORMQueries(TestCase):
 
         self.assertEqual(len(qs), 1)
         self.assertTrue(isinstance(qs[0], Species))
-        self.assertTrue(qs[0].name, self.carp.name)
+        self.assertEqual(qs[0].name, self.carp.name)
 
     def test_filter_with_constant(self):
         """
@@ -116,7 +201,7 @@ class TestORMQueries(TestCase):
 
         qs = execute_stmt("filter_species")
 
-        self.assertTrue(qs[0].name, self.crow.name)
+        self.assertEqual(qs[0].name, self.crow.name)
 
     def test_filter_wth_mixed_params(self):
         """
@@ -134,8 +219,8 @@ class TestORMQueries(TestCase):
         qs = execute_stmt("filter_species", pk=self.tiger.pk)
 
         self.assertEqual(len(qs), 2)
-        self.assertTrue(qs[0].name, self.tiger.name)
-        self.assertTrue(qs[1].name, self.crow.name)
+        self.assertEqual(qs[0].name, self.tiger.name)
+        self.assertEqual(qs[1].name, self.crow.name)
 
     def test_filter_not_enough_params(self):
         """
@@ -227,7 +312,7 @@ class TestORMQueries(TestCase):
         qs = execute_stmt("get_species", name="Carp")
 
         self.assertTrue(isinstance(qs, Species))
-        self.assertTrue(qs.name, self.tiger.name)
+        self.assertEqual(qs.name, self.carp.name)
 
     def test_prepare_first(self):
         """
@@ -246,7 +331,7 @@ class TestORMQueries(TestCase):
         qs = execute_stmt("first")
 
         self.assertTrue(isinstance(qs, Species))
-        self.assertTrue(qs.name, self.tiger.name)
+        self.assertEqual(qs.name, self.tiger.name)
 
     def test_prepare_last(self):
         """
@@ -265,7 +350,7 @@ class TestORMQueries(TestCase):
         qs = execute_stmt("last")
 
         self.assertTrue(isinstance(qs, Species))
-        self.assertTrue(qs.name, self.crow.name)
+        self.assertEqual(qs.name, self.crow.name)
 
     def test_prepare_count(self):
         """
@@ -349,7 +434,7 @@ class TestORMQueries(TestCase):
         qs = execute_stmt("all_species")
 
         first = qs.first()
-        self.assertTrue(first.name, self.tiger.name)
+        self.assertEqual(first.name, self.tiger.name)
 
     def test_last_prepared_stmt_result(self):
         """
@@ -363,9 +448,9 @@ class TestORMQueries(TestCase):
         qs = execute_stmt("all_species")
 
         last = qs.last()
-        self.assertTrue(last.name, self.crow.name)
+        self.assertEqual(last.name, self.crow.name)
 
-    def test_prepare_prefetch_related(self):
+    def test_prefetch_related_on_result(self):
         """
         Given an ORM query is prepared
         And   it has been succesfully executed
@@ -393,6 +478,91 @@ class TestORMQueries(TestCase):
             tigers = qs[0].animal_set.all()
             self.assertEqual(len(tigers), 2)
             self.assertEqual(set([tigers[0].name, tigers[1].name]), set(["Tony", "Sheer Kahn"]))
+
+    def test_prepare_values_list(self):
+        """
+        Given an ORM query is prepared with a values_list() function
+        When  the query is prepared
+        Then  an PreparedQueryNotSupported exception should be raised
+        """
+        def all_species():
+            return Species.prepare.order_by("pk").values_list("name", flat=True)
+
+        with self.assertRaises(PreparedQueryNotSupported):
+            PreparedStatementController().register_qs("all_species", all_species)
+            PreparedStatementController().prepare_qs_stmt("all_species", force=True)
+
+    def test_values_list_on_result(self):
+        """
+        Given an ORM query is  preapred and executed
+        When  .values_list() is called on the resulting query set
+        And   flat=True
+        Then  only the requested values should be returned in a flattened list
+        """
+
+        def all_species():
+            return Species.prepare.order_by("pk")
+
+        PreparedStatementController().register_qs("all_species", all_species)
+        PreparedStatementController().prepare_qs_stmt("all_species", force=True)
+
+        qs = execute_stmt("all_species")
+        qs = qs.values_list("name", flat=True)
+
+        self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
+        self.assertEqual(len(qs), 3)
+        self.assertEqual(qs[0], self.tiger.name)
+        self.assertEqual(qs[1], self.carp.name)
+        self.assertEqual(qs[2], self.crow.name)
+
+    def test_related_values_list_on_result(self):
+        """
+        Given an ORM query is  preapred and executed
+        When  .values_list() is called on the resulting query set
+        And   the named parameter is on a related model
+        And   flat=True
+        Then  only the requested values should be returned in a flattened list
+        """
+
+        Animal.objects.update_or_create(name="Tony", species=self.tiger)
+        Animal.objects.update_or_create(name="Sheer Kahn", species=self.tiger)
+
+        def all_animal_species():
+            return Animal.prepare.order_by("pk") #.values_list("species_id", flat=True)
+
+        PreparedStatementController().register_qs("all_animal_species", all_animal_species)
+        PreparedStatementController().prepare_qs_stmt("all_animal_species", force=True)
+
+        qs = execute_stmt("all_animal_species")
+        qs = qs.values_list("species_id", flat=True)
+
+        self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
+        self.assertEqual(len(qs), 2)
+        self.assertEqual(qs[0], self.tiger.id)
+        self.assertEqual(qs[1], self.tiger.id)
+
+    def test_named_values_list_on_result(self):
+        """
+        Given an ORM query is  preapred and executed
+        When  .values_list() is called on the resulting query set
+        And   named=True
+        Then  only the requested values should be returned as a list of named tuples
+        """
+
+        def all_species():
+            return Species.prepare.order_by("pk")
+
+        PreparedStatementController().register_qs("all_species", all_species)
+        PreparedStatementController().prepare_qs_stmt("all_species", force=True)
+
+        qs = execute_stmt("all_species")
+        qs = qs.values_list("name", named=True)
+
+        self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
+        self.assertEqual(len(qs), 3)
+        self.assertEqual(qs[0].name, self.tiger.name)
+        self.assertEqual(qs[1].name, self.carp.name)
+        self.assertEqual(qs[2].name, self.crow.name)
 
     def test_not_supported_queryset_methods(self):
         """

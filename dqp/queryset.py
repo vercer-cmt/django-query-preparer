@@ -1,5 +1,7 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
+from collections import namedtuple
+
 from django.db.models.query import QuerySet
 
 from dqp.constants import Placeholder
@@ -98,6 +100,12 @@ class PreparedQuerySqlBuilder(PreparedQuerySetBase):
             "Add the prefetch related to the returned queryset on statement execution"
         )
 
+    def values_list(self, *args, **kwargs):
+        raise PreparedQueryNotSupported(
+            "Cannot use values_list when preparing queysets. "
+            "Add the values_list to the returned queryset on statement execution"
+        )
+
     def count(self):
         clone = self._chain()
         clone.query.count()
@@ -167,6 +175,27 @@ class PreparedStatementQuerySet(PreparedQuerySetBase):
             return self._result_cache[-1]
         else:
             return None
+
+    def values_list(self, *fields, flat=False, named=False):
+        if self._result_cache is None:
+            raise PreparedStatementNotYetExecuted("You must call `execute()` on the PreparedStatementQuerySet first.")
+
+        if flat and named:
+            raise TypeError("'flat' and 'named' can't be used together.")
+
+        if flat is True and len(fields) > 1:
+            raise TypeError("'flat' is not valid when values_list is called with more than one field.")
+
+        clone = self._chain()
+
+        if flat is True:
+            clone._result_cache = [getattr(i, fields[0]) for i in self._result_cache]
+        elif named is True:
+            Row = namedtuple('Row', fields)
+            clone._result_cache = [Row(*[getattr(i, j) for j in fields]) for i in  self._result_cache]
+        else:
+            clone._result_cache = [tuple(getattr(i, j) for j in fields) for i in self._result_cache]
+        return clone
 
     def filter(self, *args, **kwargs):
         raise CannotAlterPreparedStatementQuerySet(
