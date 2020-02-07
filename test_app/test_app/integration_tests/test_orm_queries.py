@@ -1,5 +1,6 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
+from django.db import transaction
 from django.db.models import Q
 from django.test import TestCase
 
@@ -494,7 +495,7 @@ class TestORMQueries(TestCase):
 
     def test_values_list_on_result(self):
         """
-        Given an ORM query is  preapred and executed
+        Given an ORM query is  prepared and executed
         When  .values_list() is called on the resulting query set
         And   flat=True
         Then  only the requested values should be returned in a flattened list
@@ -517,7 +518,7 @@ class TestORMQueries(TestCase):
 
     def test_related_values_list_on_result(self):
         """
-        Given an ORM query is  preapred and executed
+        Given an ORM query is  prepared and executed
         When  .values_list() is called on the resulting query set
         And   the named parameter is on a related model
         And   flat=True
@@ -543,7 +544,7 @@ class TestORMQueries(TestCase):
 
     def test_named_values_list_on_result(self):
         """
-        Given an ORM query is  preapred and executed
+        Given an ORM query is prepared and executed
         When  .values_list() is called on the resulting query set
         And   named=True
         Then  only the requested values should be returned as a list of named tuples
@@ -614,3 +615,45 @@ class TestORMQueries(TestCase):
         with self.assertRaises(PreparedQueryNotSupported):
             PreparedStatementController().register_qs("will_fail", lambda: Species.prepare.explain())
             PreparedStatementController().prepare_qs_stmt("will_fail", force=True)
+
+    def test_query_in_transaction(self):
+        """
+        Given an ORM query is prepared
+        And   a database transaction is started
+        When  the query is executed
+        Then  it should execute as expected
+        """
+        def all_species():
+            return Species.prepare.all()
+
+        PreparedStatementController().register_qs("all_species", all_species)
+        PreparedStatementController().prepare_qs_stmt("all_species", force=True)
+
+        with transaction.atomic():
+            qs = execute_stmt("all_species")
+        self.assertEqual(len(qs), 3)
+
+    def test_reprepare_query_in_transaction(self):
+        """
+        Given an ORM query is prepared
+        And   a database transaction is started
+        And   the query has been deallocated in the database
+        When  the query is executed
+        Then  it should re-prepare without errors
+        And   it should execute as expected
+        """
+        def all_species():
+            return Species.prepare.all()
+
+        PreparedStatementController().register_qs("all_species", all_species)
+        PreparedStatementController().prepare_qs_stmt("all_species", force=True)
+
+        # deallocate the query to simulate changing database session
+        PreparedStatementController().prepared_statements["all_species"].deallocate()
+
+        with transaction.atomic():
+            qs = execute_stmt("all_species")
+            cxn = transaction.get_connection()
+            self.assertTrue(cxn.in_atomic_block)
+
+        self.assertEqual(len(qs), 3)

@@ -3,6 +3,7 @@
 import re
 import logging
 
+from django.db import transaction
 from django.db import connection, OperationalError
 from psycopg2.errors import InvalidSqlStatementName, ProgrammingError
 
@@ -127,22 +128,28 @@ class PreparedStatement:
 
     def execute(self, qry_args=None):
         try:
-            return self._execute(qry_args)
+            # We try the execution in its own transaction. This is because if an SQL statement fails while django is
+            # in a transaction it won't run any more SQL statements until the current transaction has been rolled back.
+            # Putting just this line in a transaction allows us to rollback the inner transaction without affecting a
+            # user's transaction outside this code.
+            with transaction.atomic():
+                return self._execute(qry_args)
         except OperationalError as e:
             # Check to see if the error was caused by InvalidSqlStatementName which means that we didn't prepare this
             # statement before attemptiong to execute it. This could be caused by the database session reconnecting.
             if e.__context__ is not None and e.__context__.__class__ == InvalidSqlStatementName:
-                if not self._check_stmt_is_prepared():
-                    # Let's try to re-prepare the statement
-                    self.prepare()
-                    # and check again to make sure it worked!
+                with transaction.atomic():
                     if not self._check_stmt_is_prepared():
-                        raise RuntimeError("Statement {} will not be prepared!".format(self.name))
-                    # ok let's execute the statement. If it fails this time we just let it error out.
-                    return self._execute(qry_args)
-                else:
-                    # The statement is prepared so the error must be something else. Raise it
-                    raise
+                        # Let's try to re-prepare the statement
+                        self.prepare()
+                        # and check again to make sure it worked!
+                        if not self._check_stmt_is_prepared():
+                            raise RuntimeError("Statement {} will not be prepared!".format(self.name))
+                        # ok let's execute the statement. If it fails this time we just let it error out.
+                        return self._execute(qry_args)
+                    else:
+                        # The statement is prepared so the error must be something else. Raise it
+                        raise
             else:
                 raise
 
