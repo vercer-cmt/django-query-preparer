@@ -27,14 +27,14 @@ class TestDecorators(TestCase):
             # By raising an error we can ensure that the function isn't evaluated in the course of the test
             raise RuntimeError
 
-        self.assertEqual(some_sql(), "test_app.integration_tests.test_decorators.some_sql")
+        self.assertEqual(some_sql(), "_2c92c76bbf544811d4ae82fa48601635_some_sql")
         self.assertTrue(some_sql() in PreparedStatementController.sql_generating_functions)
         self.assertFalse(some_sql() in PreparedStatementController.qs_generating_functions)
         self.assertFalse(some_sql() in PreparedStatementController.prepared_statements)
 
         with connection.cursor() as cursor:
             cursor.execute(
-                "select count(*) from pg_prepared_statements where name = 'test_app__integration_tests__test_decorators__some_sql';"
+                "select count(*) from pg_prepared_statements where name = '_2c92c76bbf544811d4ae82fa48601635_some_sql';"
             )
             (count,) = cursor.fetchone()
         self.assertEqual(count, 0)
@@ -54,7 +54,7 @@ class TestDecorators(TestCase):
         def select_now():
             return "select now();"
 
-        self.assertEqual(select_now(), "test_app.integration_tests.test_decorators.select_now")
+        self.assertEqual(select_now(), "_d25f81ebea3a1e8f7580d401326909ba_select_now")
         self.assertTrue(select_now() in PreparedStatementController.sql_generating_functions)
         self.assertFalse(select_now() in PreparedStatementController.qs_generating_functions)
         self.assertTrue(select_now() in PreparedStatementController.prepared_statements)
@@ -63,7 +63,7 @@ class TestDecorators(TestCase):
 
         with connection.cursor() as cursor:
             cursor.execute(
-                "select count(*) from pg_prepared_statements where name = 'test_app__integration_tests__test_decorators__select_now';"
+                "select count(*) from pg_prepared_statements where name = '_d25f81ebea3a1e8f7580d401326909ba_select_now';"
             )
             (count,) = cursor.fetchone()
         self.assertEqual(count, 1)
@@ -84,14 +84,14 @@ class TestDecorators(TestCase):
             # By raising an error we can ensure that the function isn't evaluated in the course of the test
             raise RuntimeError
 
-        self.assertEqual(an_orm_query(), "test_app.integration_tests.test_decorators.an_orm_query")
+        self.assertEqual(an_orm_query(), "_2e107bfe8f35cb362fc644228c8b2df0_an_orm_query")
         self.assertFalse(an_orm_query() in PreparedStatementController.sql_generating_functions)
         self.assertTrue(an_orm_query() in PreparedStatementController.qs_generating_functions)
         self.assertFalse(an_orm_query() in PreparedStatementController.prepared_statements)
 
         with connection.cursor() as cursor:
             cursor.execute(
-                "select count(*) from pg_prepared_statements where name = 'test_app__integration_tests__test_decorators__an_orm_query';"
+                "select count(*) from pg_prepared_statements where name = '_2e107bfe8f35cb362fc644228c8b2df0_an_orm_query';"
             )
             (count,) = cursor.fetchone()
         self.assertEqual(count, 0)
@@ -111,7 +111,7 @@ class TestDecorators(TestCase):
         def all_species():
             return Species.prepare.all()
 
-        self.assertEqual(all_species(), "test_app.integration_tests.test_decorators.all_species")
+        self.assertEqual(all_species(), "_32c1534968813a46e5391e9b19cbcc75_all_species")
         self.assertFalse(all_species() in PreparedStatementController.sql_generating_functions)
         self.assertTrue(all_species() in PreparedStatementController.qs_generating_functions)
         self.assertTrue(all_species() in PreparedStatementController.prepared_statements)
@@ -125,7 +125,7 @@ class TestDecorators(TestCase):
 
         with connection.cursor() as cursor:
             cursor.execute(
-                "select count(*) from pg_prepared_statements where name = 'test_app__integration_tests__test_decorators__all_species';"
+                "select count(*) from pg_prepared_statements where name = '_32c1534968813a46e5391e9b19cbcc75_all_species';"
             )
             (count,) = cursor.fetchone()
         self.assertEqual(count, 1)

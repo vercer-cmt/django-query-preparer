@@ -1,6 +1,27 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
+import hashlib
+
 from dqp.prepared_stmt_controller import PreparedStatementController
+
+
+def _make_stmt_name(func):
+    """
+    Create the prepared query name which is a string up-to 63 characters made up of
+    - an underscore
+    - the md5 hash of the <module.function> name
+    - an underscore
+    - up-to 29 characters of the function name
+    """
+    m = hashlib.md5()
+    func_name = func.__name__
+    fully_qualified_name =f"{func.__module__}.{func.__name__}"
+    m.update(bytes(fully_qualified_name, encoding="utf-8"))
+
+    stmt_name = "_"
+    stmt_name += m.hexdigest()
+    stmt_name += "_" + func_name[:29]
+    return stmt_name
 
 
 def register_prepared_sql(func):
@@ -18,7 +39,7 @@ def register_prepared_sql(func):
     rows = execute_stmt(count_trades())
 
     """
-    stmt_name = f"{func.__module__}.{func.__name__}"
+    stmt_name = _make_stmt_name(func)
     PreparedStatementController().register_sql(stmt_name, func)
     return lambda: stmt_name
 
@@ -38,7 +59,7 @@ def register_prepared_qs(func):
     rows = execute_stmt(get_trades(), [1, 2, 3])
 
     """
-    stmt_name = f"{func.__module__}.{func.__name__}"
+    stmt_name = _make_stmt_name(func)
     PreparedStatementController().register_qs(stmt_name, func)
     return lambda: stmt_name
 
@@ -56,7 +77,7 @@ def prepare_sql(func):
     rows = execute_stmt(count_trades())
 
     """
-    stmt_name = f"{func.__module__}.{func.__name__}"
+    stmt_name = _make_stmt_name(func)
     PreparedStatementController().register_sql(stmt_name, func)
     PreparedStatementController().prepare_sql_stmt(stmt_name, force=False)
     return lambda: stmt_name
@@ -75,7 +96,7 @@ def prepare_qs(func):
     rows = execute_stmt(get_trades(), [1, 2, 3])
 
     """
-    stmt_name = f"{func.__module__}.{func.__name__}"
+    stmt_name = _make_stmt_name(func)
     PreparedStatementController().register_qs(stmt_name, func)
     PreparedStatementController().prepare_qs_stmt(stmt_name, force=False)
     return lambda: stmt_name

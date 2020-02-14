@@ -7,24 +7,6 @@ from dqp.prepared_stmt import PreparedStatement, PreparedORMStatement
 
 
 class TestPreparedStatement(TestCase):
-    def test_pg_name_1(self):
-        """
-        Given a statement name which contains no dots
-        When a PreparedStatement object is instantiated with this name
-        Then the `pg_name` parameter will be the `name` parameter
-        """
-        ps = PreparedStatement("my_qry", "")
-        self.assertEqual(ps.pg_name, "my_qry")
-
-    def test_pg_name_2(self):
-        """
-        Given a statement name which contains dots
-        When a PreparedStatement object is instantiated with this name
-        Then the `pg_name` parameter will be the `name` parameter with the dots replaced by double-underscores
-        """
-        ps = PreparedStatement("my_module.my_file.my_qry", "")
-        self.assertEqual(ps.pg_name, "my_module__my_file__my_qry")
-
     def test_prepare_input_sql_1(self):
         """
         Given an sql query string with no parameter placeholders

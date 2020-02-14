@@ -34,17 +34,13 @@ class PreparedStatement:
         self.named_placeholders = None
         self.sql = ""
 
-        # The names of the prepared statements are <module>.<function> but dots aren't allowed as the names of prepared
-        # statements in postgres so replace "." by "__"
-        self.pg_name = self.name.replace(".", "__")
-
     def prepare(self, on_fail=FailureBehaviour.ERROR):
         self._prepare_input_sql()
         self._create_exec_stmt()
 
         try:
             with connection.cursor() as cursor:
-                cursor.execute("""PREPARE {} AS {}""".format(self.pg_name, self.sql))
+                cursor.execute("""PREPARE {} AS {}""".format(self.name, self.sql))
         except Exception as e:
             if on_fail == FailureBehaviour.WARN:
                 logger.warning("Could not prepare query: {}".format(e))
@@ -120,11 +116,11 @@ class PreparedStatement:
 
     def _create_exec_stmt(self):
         if self.named_placeholders is not None:
-            self.execute_stmt = "".join(["EXECUTE ", self.pg_name, "(", ", ".join(self.named_placeholders), ")"])
+            self.execute_stmt = "".join(["EXECUTE ", self.name, "(", ", ".join(self.named_placeholders), ")"])
         elif self.num_params > 0:
-            self.execute_stmt = "".join(["EXECUTE ", self.pg_name, "(", ", ".join(self.num_params * ["%s"]), ")"])
+            self.execute_stmt = "".join(["EXECUTE ", self.name, "(", ", ".join(self.num_params * ["%s"]), ")"])
         else:
-            self.execute_stmt = "EXECUTE {}".format(self.pg_name)
+            self.execute_stmt = "EXECUTE {}".format(self.name)
 
     def execute(self, qry_args=None):
         try:
@@ -157,13 +153,13 @@ class PreparedStatement:
         if self._check_stmt_is_prepared():
             try:
                 with connection.cursor() as cursor:
-                    cursor.execute("""DEALLOCATE {}""".format(self.pg_name))
+                    cursor.execute("""DEALLOCATE {}""".format(self.name))
             except Exception:
                 pass
 
     def _check_stmt_is_prepared(self):
         with connection.cursor() as cursor:
-            cursor.execute("""select count(*) from pg_prepared_statements where name = %s;""", [self.pg_name])
+            cursor.execute("""select count(*) from pg_prepared_statements where name = %s;""", [self.name])
             (count,) = cursor.fetchone()
         return count == 1
 
