@@ -5,13 +5,13 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="django-query-preparer",
-    version="0.0.1",
+    version="1.0.0",
     author="Dan Greenhalgh",
     author_email="dgreenhalgh@vercer.co.uk",
     description="A package to prepare queries in postgres before execution",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="TODO",
+    url="https://github.com/vercer-cmt/django-query-preparer",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
