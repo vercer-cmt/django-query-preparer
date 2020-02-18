@@ -90,7 +90,8 @@ class PreparedStmtQuery(Query):
     def __init__(self, model, exec_stmt, params, compiled_sql_data):
         super().__init__(model)
         self.exec_stmt = exec_stmt
-        self.params = params
+        # django-cachalot doesn't like params to be None so use an empty iterable instead
+        self.params = params or ()
         self.compiled_sql_data = compiled_sql_data
 
     def sql_with_params(self):
