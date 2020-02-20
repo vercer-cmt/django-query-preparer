@@ -38,6 +38,12 @@ class PreparedStatement:
         self._prepare_input_sql()
         self._create_exec_stmt()
 
+        # Check to see if the query has already been prepared in the database. This could be the situation if whatever
+        # uses this library is also using connection pooling (e.g. pgbouncer): another process may have prepared the
+        # query against this db session.
+        if self._check_stmt_is_prepared():
+            return
+
         try:
             with connection.cursor() as cursor:
                 cursor.execute("""PREPARE {} AS {}""".format(self.name, self.sql))

@@ -1,9 +1,11 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
+from unittest.mock import patch
 
 from django.db import connection
+from django.db.utils import ProgrammingError
 from django.test import TransactionTestCase
-from psycopg2.errors import ProgrammingError
 
+from dqp.constants import FailureBehaviour
 from dqp.prepared_stmt import dictfetchall, PreparedStatement
 
 
@@ -162,3 +164,61 @@ class TestPreparedStatement(TransactionTestCase):
         ]
         self.assertEqual(results, expected_results)
         self.assertTrue(ps._check_stmt_is_prepared())
+
+    def test_no_error_if_already_prepared_in_db(self):
+        """
+        Given a PreparedStatement object exists
+        And   the statement has already been prepared in the database
+        When  prepare() is called again
+        Then  the statement should be not be re-prepared and no error should be thrown
+
+        This case can happen if the the django app uses a connection pooler, e.g. pgbouncer, where individual django
+        processes share database sessions. In this case another process may have already prepared the queries in the
+        same same db session.
+        """
+
+        my_qry = "select * from my_table;"
+        ps = PreparedStatement("my_stmt", my_qry)
+        ps.prepare()
+        self.assertTrue(ps._check_stmt_is_prepared())
+
+        # Delete the PreparedStatement but leave the statement allocated in the db
+        del ps
+
+        ps2 = PreparedStatement("my_stmt", my_qry)
+        self.assertTrue(ps2._check_stmt_is_prepared())
+        ps2.prepare()
+
+    def test_prepare_failure_mode_error(self):
+        """
+        Given a PreparedStatement object with a query that refences a table which doesn't exist in the database
+        When  prepare() is called
+        And   no `on_fail` argument supplied
+        Then  the statement should not be prepared in the database
+        And   an error should be thrown
+        """
+        my_qry = "select * from not_a_table;"
+        ps = PreparedStatement("my_stmt", my_qry)
+
+        with self.assertRaises(ProgrammingError) as ctx:
+            ps.prepare()
+        self.assertTrue('relation "not_a_table" does not exist' in str(ctx.exception))
+        self.assertFalse(ps._check_stmt_is_prepared())
+
+    def test_prepare_failure_mode_warn(self):
+        """
+        Given a PreparedStatement object with a query that refences a table which doesn't exist in the database
+        When  prepare() is called
+        And   `on_fail` is FailureBehaviour.WARN
+        Then  the statement should not be prepared in the database
+        And   no error should be thrown
+        And   a warning message should be logged
+        """
+        my_qry = "select * from not_a_table;"
+        ps = PreparedStatement("my_stmt", my_qry)
+
+        with patch("dqp.prepared_stmt.logger.warning") as mock_logger:
+            ps.prepare(on_fail=FailureBehaviour.WARN)
+        mock_logger.assert_called_once()
+        self.assertTrue('Could not prepare query: relation "not_a_table" does not exist' in mock_logger.call_args[0][0])
+        self.assertFalse(ps._check_stmt_is_prepared())
