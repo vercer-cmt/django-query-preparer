@@ -22,4 +22,4 @@ class ListPlaceholder(UserList):
 
 class FailureBehaviour(Enum):
     ERROR = "error"
-    WARN  = "warn"
+    WARN = "warn"

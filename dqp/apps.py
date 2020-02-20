@@ -4,6 +4,7 @@ from django.apps import AppConfig
 
 from dqp.constants import FailureBehaviour
 
+
 class DQPConfig(AppConfig):
     name = "dqp"
 

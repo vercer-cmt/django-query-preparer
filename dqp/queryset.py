@@ -191,8 +191,8 @@ class PreparedStatementQuerySet(PreparedQuerySetBase):
         if flat is True:
             clone._result_cache = [getattr(i, fields[0]) for i in self._result_cache]
         elif named is True:
-            Row = namedtuple('Row', fields)
-            clone._result_cache = [Row(*[getattr(i, j) for j in fields]) for i in  self._result_cache]
+            Row = namedtuple("Row", fields)
+            clone._result_cache = [Row(*[getattr(i, j) for j in fields]) for i in self._result_cache]
         else:
             clone._result_cache = [tuple(getattr(i, j) for j in fields) for i in self._result_cache]
         return clone

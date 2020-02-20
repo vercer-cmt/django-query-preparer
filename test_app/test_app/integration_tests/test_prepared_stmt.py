@@ -162,4 +162,3 @@ class TestPreparedStatement(TransactionTestCase):
         ]
         self.assertEqual(results, expected_results)
         self.assertTrue(ps._check_stmt_is_prepared())
-

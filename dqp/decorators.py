@@ -15,7 +15,7 @@ def _make_stmt_name(func):
     """
     m = hashlib.md5()
     func_name = func.__name__
-    fully_qualified_name =f"{func.__module__}.{func.__name__}"
+    fully_qualified_name = f"{func.__module__}.{func.__name__}"
     m.update(bytes(fully_qualified_name, encoding="utf-8"))
 
     stmt_name = "_"

@@ -147,7 +147,6 @@ class TestORMQueries(TestCase):
         self.assertEqual(qs[0].name, "Jack Daw")
         self.assertEqual(qs[1].name, "C. Orvid")
 
-
     def test_prepare_in(self):
         """
         Given an ORM query is prepared with an `__in` filter
@@ -486,6 +485,7 @@ class TestORMQueries(TestCase):
         When  the query is prepared
         Then  an PreparedQueryNotSupported exception should be raised
         """
+
         def all_species():
             return Species.prepare.order_by("pk").values_list("name", flat=True)
 
@@ -529,7 +529,7 @@ class TestORMQueries(TestCase):
         Animal.objects.update_or_create(name="Sheer Kahn", species=self.tiger)
 
         def all_animal_species():
-            return Animal.prepare.order_by("pk") #.values_list("species_id", flat=True)
+            return Animal.prepare.order_by("pk")  # .values_list("species_id", flat=True)
 
         PreparedStatementController().register_qs("all_animal_species", all_animal_species)
         PreparedStatementController().prepare_qs_stmt("all_animal_species", force=True)
@@ -623,6 +623,7 @@ class TestORMQueries(TestCase):
         When  the query is executed
         Then  it should execute as expected
         """
+
         def all_species():
             return Species.prepare.all()
 
@@ -642,6 +643,7 @@ class TestORMQueries(TestCase):
         Then  it should re-prepare without errors
         And   it should execute as expected
         """
+
         def all_species():
             return Species.prepare.all()
 
