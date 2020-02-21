@@ -197,6 +197,15 @@ class PreparedStatementQuerySet(PreparedQuerySetBase):
             clone._result_cache = [tuple(getattr(i, j) for j in fields) for i in self._result_cache]
         return clone
 
+    def values(self, *fields, **kawrgs):
+        if self._result_cache is None:
+            raise PreparedStatementNotYetExecuted("You must call `execute()` on the PreparedStatementQuerySet first.")
+
+        clone = self._chain()
+
+        clone._result_cache = [{j: getattr(i, j) for j in fields} for i in self._result_cache]
+        return clone
+
     def filter(self, *args, **kwargs):
         raise CannotAlterPreparedStatementQuerySet(
             "Please use python built-in function `filter` on the query set instead"

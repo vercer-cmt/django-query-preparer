@@ -479,6 +479,29 @@ class TestORMQueries(TestCase):
             self.assertEqual(len(tigers), 2)
             self.assertEqual(set([tigers[0].name, tigers[1].name]), set(["Tony", "Sheer Kahn"]))
 
+    def test_values_on_result(self):
+        """
+        Given an ORM query is  prepared and executed
+        When  .values_list() is called on the resulting query set
+        And   flat=True
+        Then  only the requested values should be returned in a flattened list
+        """
+
+        def all_species():
+            return Species.prepare.order_by("pk")
+
+        PreparedStatementController().register_qs("all_species", all_species)
+        PreparedStatementController().prepare_qs_stmt("all_species", force=True)
+
+        qs = execute_stmt("all_species")
+        qs = qs.values("name")
+
+        self.assertTrue(isinstance(qs, PreparedStatementQuerySet))
+        self.assertEqual(len(qs), 3)
+        self.assertDictEqual(qs[0], {"name": self.tiger.name})
+        self.assertDictEqual(qs[1], {"name": self.carp.name})
+        self.assertDictEqual(qs[2], {"name": self.crow.name})
+
     def test_prepare_values_list(self):
         """
         Given an ORM query is prepared with a values_list() function
@@ -529,7 +552,7 @@ class TestORMQueries(TestCase):
         Animal.objects.update_or_create(name="Sheer Kahn", species=self.tiger)
 
         def all_animal_species():
-            return Animal.prepare.order_by("pk")  # .values_list("species_id", flat=True)
+            return Animal.prepare.order_by("pk")
 
         PreparedStatementController().register_qs("all_animal_species", all_animal_species)
         PreparedStatementController().prepare_qs_stmt("all_animal_species", force=True)
