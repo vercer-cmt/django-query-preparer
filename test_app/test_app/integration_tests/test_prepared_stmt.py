@@ -222,3 +222,52 @@ class TestPreparedStatement(TransactionTestCase):
         mock_logger.assert_called_once()
         self.assertTrue('Could not prepare query: relation "not_a_table" does not exist' in mock_logger.call_args[0][0])
         self.assertFalse(ps._check_stmt_is_prepared())
+
+    def test_comments(self):
+        """
+        Given an SQL query which has comments in it
+        When  it is prepared and then executed
+        Then  it should execute correctly without error
+        """
+        my_qry = """
+        select
+            -- this is a comment
+            count(*)
+        from  -- also a comment
+            my_table
+        ;
+        -- one final comment
+        """
+
+        ps = PreparedStatement("my_stmt", my_qry)
+        ps.prepare()
+        self.assertTrue(ps._check_stmt_is_prepared())
+
+        results = ps.execute()
+        self.assertEqual(results, [{'count': 4}])
+
+    def test_comments_with_params(self):
+        """
+        Given an SQL query which has comments in it and the comments contain placeholders
+        When  it is prepared and then executed
+        Then  it should execute correctly without error - the commented out placeholder should not be filled
+        """
+        my_qry = """
+        select
+            -- this is a comment
+            count(*)
+        from 
+            my_table
+        where
+          -- id = (%s)
+          id = (%s)
+        ;
+        -- one final comment
+        """
+
+        ps = PreparedStatement("my_stmt", my_qry)
+        ps.prepare()
+        self.assertTrue(ps._check_stmt_is_prepared())
+
+        results = ps.execute([1])
+        self.assertEqual(results, [{'count': 1}])

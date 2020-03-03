@@ -82,6 +82,16 @@ class PreparedStatement:
         N.B. Mixing named and un-named placeholders is not allowed. Use one or the other.
         """
         sql = self.input_sql.lower().strip()
+
+        # Remove comments because the SQL is put back together without newlines.
+        sql_lines = sql.splitlines()
+        for i, line in enumerate(sql_lines):
+            if "--" in line:
+                sql_lines[i] = line[:line.index("--")]
+        
+        sql = "\n".join(sql_lines)
+        sql = sql.strip()
+
         if sql[-1] == ";":
             sql = sql[:-1]
         sql_as_list = sql.split()
