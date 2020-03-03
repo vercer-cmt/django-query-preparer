@@ -1,6 +1,7 @@
 # Copyright (c) 2020, Vercer Ltd. Rights set out in LICENCE.txt
 
 from collections import namedtuple
+from copy import deepcopy
 
 from django.db.models.query import QuerySet
 
@@ -68,6 +69,12 @@ class PreparedQuerySetBase(QuerySet):
 
     def explain(self, *args, **kwargs):
         raise PreparedQueryNotSupported(self.NotSupportedMessage.format("explain"))
+
+    def iterator(self, *args, **kwargs):
+        raise PreparedQueryNotSupported(self.NotSupportedMessage.format("iterator"))
+
+    def select_for_update(self, *args, **kwargs):
+        raise PreparedQueryNotSupported(self.NotSupportedMessage.format("select_for_update"))
 
 
 class PreparedQuerySqlBuilder(PreparedQuerySetBase):
@@ -176,6 +183,15 @@ class PreparedStatementQuerySet(PreparedQuerySetBase):
         else:
             return None
 
+    def reverse(self, *args, **kwargs):
+        if self._result_cache is None:
+            raise PreparedStatementNotYetExecuted("You must call `execute()` on the PreparedStatementQuerySet first.")
+        
+        clone = self._chain()
+        clone._result_cache = deepcopy(self._result_cache)
+        clone._result_cache.reverse()
+        return clone
+
     def values_list(self, *fields, flat=False, named=False):
         if self._result_cache is None:
             raise PreparedStatementNotYetExecuted("You must call `execute()` on the PreparedStatementQuerySet first.")
@@ -211,6 +227,11 @@ class PreparedStatementQuerySet(PreparedQuerySetBase):
             "Please use python built-in function `filter` on the query set instead"
         )
 
+    def exclude(self, *args, **kwargs):
+        raise CannotAlterPreparedStatementQuerySet(
+            "Please use python built-in function `filter` on the query set instead"
+        )
+
     def get(self, *args, **kwargs):
         raise CannotAlterPreparedStatementQuerySet(
             "Please use python built-in function `filter` on the query set instead"
@@ -225,3 +246,52 @@ class PreparedStatementQuerySet(PreparedQuerySetBase):
         raise CannotAlterPreparedStatementQuerySet(
             "Please use python built-in function `sorted` on the query set instead"
         )
+
+    def order_by(self, *args, **kwargs):
+        raise CannotAlterPreparedStatementQuerySet(
+            "Please use python built-in function `sorted` on the query set instead"
+        )
+
+    def distinct(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def union(self, *args, **kwargs):
+        raise CannotAlterPreparedStatementQuerySet(
+            "Cannot use `union` on a PreparedStatementQuerySet"
+        )
+
+    def as_manager(self, *args, **kwargs):
+        """
+        TODO: Should raise a different error as cannot use a PreparedStatementQuerySet as a manager
+        """
+        raise NotImplementedError
+
+    def dates(self, *args, **kwargs):
+        raise NotImplementedError
+ 
+    def datetimes(self, *args, **kwargs):
+        raise NotImplementedError
+ 
+    def none(self, *args, **kwargs):
+        raise NotImplementedError
+ 
+    def intersection(self, *args, **kwargs):
+        raise NotImplementedError
+ 
+    def difference(self, *args, **kwargs):
+       raise NotImplementedError
+
+    def extra(self, *args, **kwargs):
+       raise NotImplementedError
+ 
+    def defer(self, *args, **kwargs):
+       raise NotImplementedError
+ 
+    def only(self, *args, **kwargs):
+       raise NotImplementedError
+ 
+    def using(self, *args, **kwargs):
+       raise NotImplementedError
+ 
+    def raw(self, *args, **kwargs):
+       raise NotImplementedError
